@@ -4,7 +4,7 @@ import itertools
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import boto3
 import nltk
 from langchain.chat_models import init_chat_model
@@ -34,6 +34,13 @@ llm_response_schema = {
         "numbers": {
             "type": "array",
             "description": "List of vanity phone numbers",
+            "items": {
+                "type": "string",
+            }
+        },
+        "numbers_tts": {
+            "type": "array",
+            "description": "List of vanity phone numbers formatted for TTS",
             "items": {
                 "type": "string",
             }
@@ -99,13 +106,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }
         
         # Rank the candidates using AI
-        ranked_candidates = rank_vanity_candidates(candidates)
+        ranked_candidates, ranked_candidates_tts = rank_vanity_candidates(candidates)
         
         logger.info(f"Generated {len(ranked_candidates)} ranked vanity numbers")
         
         # Store results in DynamoDB
         try:
-            store_results_in_dynamodb(customer_phone_number, ranked_candidates)
+            store_results_in_dynamodb(customer_phone_number, ranked_candidates, ranked_candidates_tts)
             logger.info(f"Successfully stored results in DynamoDB for {customer_phone_number}")
         except Exception as e:
             logger.error(f"Failed to store results in DynamoDB: {str(e)}")
@@ -113,7 +120,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         return {
             'vanityNumberSuccess': True,
-            'vanityNumbers': ", ".join(ranked_candidates) if ranked_candidates else "",
+            'vanityNumbers': ", ".join(ranked_candidates_tts) if ranked_candidates_tts else "",
         }
         
     except Exception as e:
@@ -123,18 +130,29 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'vanityNumbers': "",
         }
 
-def rank_vanity_candidates(candidates: list[str]) -> list[str]:
+def rank_vanity_candidates(candidates: list[str]) -> Tuple[list[str], list[str]]:
     prompt = (
         "Given a list of vanity phone numbers, rank them based on their desirability. "
-        "Consider factors such as length, memorability, and relevance to common words or phrases. "
+        "Only rank numbers that are provided, do not generate new ones. "
+        "Desirability is based on how easy they are to remember, pronounce, and type. "
+        "Give preference to numbers that form common words or phrases, and to options with longer words. "
+        "Remove any innappropriate or offensive options.\n\n"
         "Return a list of the top 5 ranked vanity numbers, sorted by desirability.\n\n"
+        "Also include a text-to-speech-friendly version of each ranked number in the response that can be "
+        "easily understood when spoken verbally by a basic TTS engine. Keep groups of numbers and words together."
+        " For example \"123-4-LOST-90\" should be formatted as \"1234 LOST 90\" \n\n"
         f"Vanity Numbers: {', '.join(candidates)}\n\n"
     )
     response = structured_llm.invoke(prompt)
     if response is None or 'numbers' not in response or not response['numbers']:
         logger.warning("No valid vanity candidates returned from ranking model.")
         return []
-    return response['numbers'][:5]  # Return top 5 candidates
+
+    if 'numbers_tts' not in response or len(response['numbers_tts']) != len(response['numbers']):
+        logger.warning("TTS versions missing or mismatch with vanity numbers.")
+        response['numbers_tts'] = response['numbers'] # Fallback to same as numbers if TTS is missing
+
+    return (response['numbers'][:5], response['numbers_tts'][:5])  # Return top 5 candidates
 
 
 def generate_vanity_candidates(phone_number: str) -> list[str]:
@@ -192,7 +210,7 @@ def generate_vanity_candidates(phone_number: str) -> list[str]:
     return candidates
 
 
-def store_results_in_dynamodb(phone_number: str, vanity_numbers: list[str]) -> None:
+def store_results_in_dynamodb(phone_number: str, vanity_numbers: list[str], vanity_numbers_tts: list[str]) -> None:
     """
     Store vanity number results in DynamoDB table.
     
@@ -205,6 +223,7 @@ def store_results_in_dynamodb(phone_number: str, vanity_numbers: list[str]) -> N
         item = {
             'phoneNumber': phone_number,
             'vanityNumbers': vanity_numbers,
+            'vanityNumbersTTS': vanity_numbers_tts,
             'timestamp': datetime.now(timezone.utc).isoformat()
         }
         
