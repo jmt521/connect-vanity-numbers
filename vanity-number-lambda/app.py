@@ -48,7 +48,8 @@ llm_response_schema = {
     },
     "required": ["numbers"],
 }
-llm = init_chat_model("anthropic.claude-3-5-sonnet-20240620-v1:0", model_provider="bedrock_converse")
+model_id = os.environ.get('BEDROCK_MODEL_ID', 'anthropic.claude-3-5-sonnet-20240620-v1:0')
+llm = init_chat_model(model_id, model_provider="bedrock_converse")
 structured_llm = llm.with_structured_output(llm_response_schema)
 
 # Initialize DynamoDB client

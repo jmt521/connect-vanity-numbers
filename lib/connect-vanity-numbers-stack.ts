@@ -13,13 +13,18 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
     super(scope, id, props);
 
     // Create a parameter for the Connect instance ARN
-    const connectInstanceArn = new cdk.CfnParameter(
-      this,
-      "ConnectInstanceArn",
-      {
+    const connectInstanceArn = new cdk.CfnParameter(this, "ConnectInstanceArn", {
         type: "String",
         description: "The ARN of the Amazon Connect instance",
         default: "",
+      }
+    );
+
+    // Create a parameter for the Bedrock model ID
+    const bedrockModelId = new cdk.CfnParameter(this, "BedrockModelId",{
+        type: "String",
+        description: "The Bedrock model ID to use for vanity number generation",
+        default: "anthropic.claude-3-5-sonnet-20240620-v1:0",
       }
     );
 
@@ -33,10 +38,7 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Use RETAIN for production
     });
 
-    const vanityNumberLambda = new PythonFunction(
-      this,
-      "VanityNumberFunction",
-      {
+    const vanityNumberLambda = new PythonFunction(this, "VanityNumberFunction", {
         entry: path.join(__dirname, "..", "vanity-number-lambda"),
         runtime: lambda.Runtime.PYTHON_3_13,
         index: "app.py",
@@ -45,6 +47,7 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
         memorySize: 512,
         environment: {
           DYNAMODB_TABLE_NAME: vanityResultsTable.tableName,
+          BEDROCK_MODEL_ID: bedrockModelId.valueAsString,
         },
       }
     );
