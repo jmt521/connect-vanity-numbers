@@ -1,0 +1,186 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "8b53c2bd-6fe8-4a14-9c87-10b69d928a55",
+  "Metadata": {
+    "entryPointPosition": {
+      "x": -136.8,
+      "y": 53.6
+    },
+    "ActionMetadata": {
+      "2744ea30-43a9-40e4-8813-5a71d0157708": {
+        "position": {
+          "x": 625.6,
+          "y": 506.4
+        }
+      },
+      "Read vanity numbers": {
+        "position": {
+          "x": 937.6,
+          "y": 96.8
+        },
+        "isFriendlyName": true
+      },
+      "Store vanity numbers": {
+        "position": {
+          "x": 705.6,
+          "y": 99.2
+        },
+        "isFriendlyName": true,
+        "parameters": {
+          "Attributes": {
+            "VanityNumbers": {
+              "useDynamic": true
+            }
+          }
+        },
+        "dynamicParams": [
+          "VanityNumbers"
+        ]
+      },
+      "8b53c2bd-6fe8-4a14-9c87-10b69d928a55": {
+        "position": {
+          "x": -40.8,
+          "y": 140.8
+        }
+      },
+      "Error": {
+        "position": {
+          "x": 228.8,
+          "y": 431.2
+        },
+        "isFriendlyName": true
+      },
+      "Create vanity numbers": {
+        "position": {
+          "x": 452.8,
+          "y": 106.4
+        },
+        "isFriendlyName": true,
+        "parameters": {
+          "LambdaFunctionARN": {
+            "displayName": "{LambdaFunctionDisplayName}"
+          }
+        },
+        "dynamicMetadata": {}
+      },
+      "Welcome message": {
+        "position": {
+          "x": 193.6,
+          "y": 107.2
+        },
+        "isFriendlyName": true
+      }
+    },
+    "Annotations": [],
+    "name": "Vanity Number Flow",
+    "description": "",
+    "type": "contactFlow",
+    "status": "PUBLISHED",
+    "hash": {}
+  },
+  "Actions": [
+    {
+      "Parameters": {},
+      "Identifier": "2744ea30-43a9-40e4-8813-5a71d0157708",
+      "Type": "DisconnectParticipant",
+      "Transitions": {}
+    },
+    {
+      "Parameters": {
+        "SSML": "Here's a few fun options for you: $.Attributes.VanityNumbers .\n\nThanks for calling!"
+      },
+      "Identifier": "Read vanity numbers",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "2744ea30-43a9-40e4-8813-5a71d0157708",
+        "Errors": [
+          {
+            "NextAction": "Error",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Attributes": {
+          "VanityNumbers": "$.External.vanityNumbers"
+        },
+        "TargetContact": "Current"
+      },
+      "Identifier": "Store vanity numbers",
+      "Type": "UpdateContactAttributes",
+      "Transitions": {
+        "NextAction": "Read vanity numbers",
+        "Errors": [
+          {
+            "NextAction": "Error",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "FlowLoggingBehavior": "Enabled"
+      },
+      "Identifier": "8b53c2bd-6fe8-4a14-9c87-10b69d928a55",
+      "Type": "UpdateFlowLoggingBehavior",
+      "Transitions": {
+        "NextAction": "Welcome message"
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Sorry, please try again later."
+      },
+      "Identifier": "Error",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "2744ea30-43a9-40e4-8813-5a71d0157708",
+        "Errors": [
+          {
+            "NextAction": "2744ea30-43a9-40e4-8813-5a71d0157708",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "LambdaFunctionARN": "{LambdaFunctionARN}",
+        "InvocationTimeLimitSeconds": "8",
+        "ResponseValidation": {
+          "ResponseType": "STRING_MAP"
+        }
+      },
+      "Identifier": "Create vanity numbers",
+      "Type": "InvokeLambdaFunction",
+      "Transitions": {
+        "NextAction": "Store vanity numbers",
+        "Errors": [
+          {
+            "NextAction": "Error",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Hi! Thanks for calling the vanity number hotline. Give me a few seconds to create a fun message from your current phone number."
+      },
+      "Identifier": "Welcome message",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "Create vanity numbers",
+        "Errors": [
+          {
+            "NextAction": "Error",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    }
+  ]
+}

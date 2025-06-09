@@ -140,7 +140,7 @@ def rank_vanity_candidates(candidates: list[str]) -> Tuple[list[str], list[str]]
         "Return a list of the top 5 ranked vanity numbers, sorted by desirability.\n\n"
         "Also include a text-to-speech-friendly version of each ranked number in the response that can be "
         "easily understood when spoken verbally by a basic TTS engine. Keep groups of numbers and words together."
-        " For example \"123-4-LOST-90\" should be formatted as \"1234 LOST 90\" \n\n"
+        "Convert words to lowercase. For example \"123-4-LOST-90\" should be formatted as \"1234 lost 90\" \n\n"
         f"Vanity Numbers: {', '.join(candidates)}\n\n"
     )
     response = structured_llm.invoke(prompt)
