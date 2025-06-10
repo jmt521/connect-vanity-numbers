@@ -54,6 +54,13 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
       }
     );
 
+    // Version and alias the Lambda function
+    const lambdaVersion = vanityNumberLambda.currentVersion;
+    const vanityNumberLambdaAlias = new lambda.Alias(this, 'LambdaAlias', {
+      aliasName: 'Prod',
+      version: lambdaVersion,
+    });
+
     // Add IAM permissions for Bedrock
     vanityNumberLambda.addToRolePolicy(
       new iam.PolicyStatement({
@@ -81,14 +88,14 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
     new connect.CfnIntegrationAssociation(this, "VanityNumberLambdaIntegration", {
       instanceId: connectInstanceArn.valueAsString,
       integrationType: "LAMBDA_FUNCTION",
-      integrationArn: vanityNumberLambda.functionArn,
+      integrationArn: vanityNumberLambdaAlias.functionArn,
     });
 
     // Load flow content from JSON file
     // Replace tokens in flow content with actual Lambda function details
     const flowContentWithLambda = JSON.stringify(flowContent)
-      .replace(/{LambdaFunctionARN}/g, vanityNumberLambda.functionArn)
-      .replace(/{LambdaFunctionDisplayName}/g, vanityNumberLambda.functionName);
+      .replace(/{LambdaFunctionARN}/g, vanityNumberLambdaAlias.functionArn)
+      .replace(/{LambdaFunctionDisplayName}/g, vanityNumberLambdaAlias.functionName);
 
     // Create a Connect Contact Flow for vanity number lookup
     new connect.CfnContactFlow(this, "VanityNumberContactFlow", {

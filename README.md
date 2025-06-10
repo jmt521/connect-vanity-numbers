@@ -82,8 +82,7 @@ npx cdk deploy --parameters ConnectInstanceArn=arn:aws:connect:us-east-1:1234567
 Use the SAM CLI for local Lambda function testing, providing a Connect Contact Flow event.
 
 ```bash
-sam local invoke -t .\cdk.out\ConnectVanityNumbersStack.template.json -e .\vanity-number-lambda\event.json --profile personal     
-"
+sam local invoke -t ./cdk.out/ConnectVanityNumbersStack.template.json -e ./vanity-number-lambda/event.json --profile personal     
 ```
 
 ### Useful CDK Commands
