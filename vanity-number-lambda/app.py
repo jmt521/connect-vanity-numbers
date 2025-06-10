@@ -26,7 +26,7 @@ nltk.download('words', download_dir='/tmp/nltk_data', quiet=True)
 nltk.data.path.append('/tmp/nltk_data')
 WORD_LIST = set(w.lower() for w in nltk.corpus.words.words())
 
-# Configure LangChain bedrock model
+# Configure LangChain and Bedrock model
 llm_response_schema = {
     "title": "phone_numbers",
     "type": "object",
@@ -59,7 +59,7 @@ table = dynamodb.Table(table_name)
 
 # Configure logger
 logger = logging.getLogger(__name__)
-level = logging.INFO  # Default log level
+level = logging.INFO 
 logger.setLevel(level)
 
 if not logger.handlers:
@@ -78,6 +78,14 @@ if not logger.handlers:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """
+    Lambda function handler to process vanity phone numbers from Connect contact flow events.
+    Args:
+        event: Connect contact flow event 
+        context: Lambda context object
+    Returns:
+        A dictionary with success status and list of ranked vanity numbers.
+    """
     try:
         logger.info(f"Received event: {json.dumps(event)}")
         
@@ -106,7 +114,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'vanityNumbers': ""
             }
         
-        # Rank the candidates using AI
+        # Rank the candidates using LLM call
         ranked_candidates, ranked_candidates_tts = rank_vanity_candidates(candidates)
         
         logger.info(f"Generated {len(ranked_candidates)} ranked vanity numbers")
@@ -117,8 +125,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             logger.info(f"Successfully stored results in DynamoDB for {customer_phone_number}")
         except Exception as e:
             logger.error(f"Failed to store results in DynamoDB: {str(e)}")
-            # Continue execution even if DynamoDB storage fails
         
+        # Return results to Connect contact flow
         return {
             'vanityNumberSuccess': True,
             'vanityNumbers': ", ".join(ranked_candidates_tts) if ranked_candidates_tts else "",
@@ -132,6 +140,19 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }
 
 def rank_vanity_candidates(candidates: list[str]) -> Tuple[list[str], list[str]]:
+    """
+    Rank the provided vanity phone number candidates using a structured LLM call.
+    Args:
+        candidates: List of vanity phone number candidates to rank
+    Returns:
+        A tuple containing:
+        - List of top 5 ranked vanity numbers
+        - List of TTS formatted versions of those numbers
+    """
+    if not candidates:
+        logger.warning("No candidates provided for ranking.")
+        return ([], [])
+    
     prompt = (
         "You are an expert at ranking vanity phone numbers for memorability and pronunciation. "
         "Rank the provided vanity phone numbers based on desirability criteria listed below. "
@@ -148,7 +169,7 @@ def rank_vanity_candidates(candidates: list[str]) -> Tuple[list[str], list[str]]
         
         "Return the top 5 ranked vanity numbers, sorted by desirability.\n\n"
         
-        "TTS FORMATTING RULES:\n"
+        "TTS FORMATTING RULES:\n" # TODO - apply some of these rules programmatically
         "Create natural speech versions that sound like how a human would say the number:\n"
         "- Convert words to lowercase\n"
         "- For 1-2 digit numbers: use word form (90 → 'ninety', 5 → 'five')\n"
@@ -164,16 +185,26 @@ def rank_vanity_candidates(candidates: list[str]) -> Tuple[list[str], list[str]]
     response = structured_llm.invoke(prompt)
     if response is None or 'numbers' not in response or not response['numbers']:
         logger.warning("No valid vanity candidates returned from ranking model.")
-        return []
+        return ([], [])
 
+    # TODO - validate TTS versions vs numbers
     if 'numbers_tts' not in response or len(response['numbers_tts']) != len(response['numbers']):
         logger.warning("TTS versions missing or mismatch with vanity numbers.")
         response['numbers_tts'] = response['numbers'] # Fallback to same as numbers if TTS is missing
 
-    return (response['numbers'][:5], response['numbers_tts'][:5])  # Return top 5 candidates
+    # Return top 5 candidates
+    return (response['numbers'][:5], response['numbers_tts'][:5]) 
 
 
 def generate_vanity_candidates(phone_number: str) -> list[str]:
+    """
+    Generate vanity phone number candidates from a given phone number.
+    Args:
+        phone_number: The phone number to process
+    Returns:
+        A list of vanity phone number candidates
+    """
+
     # Clean up phone number - remove non-digit characters
     phone_number = re.sub(r'\D', '', phone_number)
     
@@ -231,7 +262,8 @@ def store_results_in_dynamodb(phone_number: str, vanity_numbers: list[str], vani
     
     Args:
         phone_number: The caller's phone number (partition key)
-        vanity_numbers: List of ranked vanity numbers
+        vanity_numbers: List of vanity numbers
+        vanity_numbers_tts: List of TTS formatted vanity numbers
     """
     try:
         # Create the item to store

@@ -38,6 +38,7 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Use RETAIN for production
     });
 
+    // Lambda function
     const vanityNumberLambda = new PythonFunction(this, "VanityNumberFunction", {
         entry: path.join(__dirname, "..", "vanity-number-lambda"),
         runtime: lambda.Runtime.PYTHON_3_13,
@@ -65,7 +66,7 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
       })
     );
 
-    // Grant Lambda permissions to read/write to DynamoDB table
+    // Add DyanamoDB permissions
     vanityResultsTable.grantReadWriteData(vanityNumberLambda);
 
     // Add resource-based policy to allow Amazon Connect to invoke the Lambda function
@@ -83,6 +84,7 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
       integrationArn: vanityNumberLambda.functionArn,
     });
 
+    // Load flow content from JSON file
     // Replace tokens in flow content with actual Lambda function details
     const flowContentWithLambda = JSON.stringify(flowContent)
       .replace(/{LambdaFunctionARN}/g, vanityNumberLambda.functionArn)
