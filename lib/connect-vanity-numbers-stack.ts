@@ -45,6 +45,7 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
         handler: "lambda_handler",
         timeout: cdk.Duration.minutes(5),
         memorySize: 512,
+        snapStart: lambda.SnapStartConf.ON_PUBLISHED_VERSIONS,
         environment: {
           DYNAMODB_TABLE_NAME: vanityResultsTable.tableName,
           BEDROCK_MODEL_ID: bedrockModelId.valueAsString,
@@ -72,6 +73,14 @@ export class ConnectVanityNumbersStack extends cdk.Stack {
       principal: new iam.ServicePrincipal("connect.amazonaws.com"),
       action: "lambda:InvokeFunction",
       sourceArn: connectInstanceArn.valueAsString,
+      sourceAccount: cdk.Fn.select(4, cdk.Fn.split(":", connectInstanceArn.valueAsString))
+    });
+
+    // Create an integration association to associate the Lambda function with the Connect instance
+    new connect.CfnIntegrationAssociation(this, "VanityNumberLambdaIntegration", {
+      instanceId: connectInstanceArn.valueAsString,
+      integrationType: "LAMBDA_FUNCTION",
+      integrationArn: vanityNumberLambda.functionArn,
     });
 
     // Replace tokens in flow content with actual Lambda function details
