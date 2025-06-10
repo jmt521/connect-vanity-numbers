@@ -133,16 +133,33 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 def rank_vanity_candidates(candidates: list[str]) -> Tuple[list[str], list[str]]:
     prompt = (
-        "Given a list of vanity phone numbers, rank them based on their desirability. "
-        "Only rank numbers that are provided, do not generate new ones. "
-        "Desirability is based on how easy they are to remember, pronounce, and type. "
-        "Give preference to numbers that form common words or phrases, and to options with longer words. "
-        "Remove any innappropriate or offensive options.\n\n"
-        "Return a list of the top 5 ranked vanity numbers, sorted by desirability.\n\n"
-        "Also include a text-to-speech-friendly version of each ranked number in the response that can be "
-        "easily understood when spoken verbally by a basic TTS engine. Keep groups of numbers and words together."
-        "Convert words to lowercase. For example \"123-4-LOST-90\" should be formatted as \"1234 lost 90\" \n\n"
-        f"Vanity Numbers: {', '.join(candidates)}\n\n"
+        "You are an expert at ranking vanity phone numbers for memorability and pronunciation. "
+        "Rank the provided vanity phone numbers based on desirability criteria listed below. "
+        "Only rank numbers that are provided - do not generate new ones.\n\n"
+        
+        "RANKING CRITERIA (in order of importance):\n"
+        "1. LONGER WORDS: Strong preference for numbers containing longer words (4+ letters)\n"
+        "2. SEMANTIC MEANING: High preference for combinations that have meaning (e.g., 'HI 5', 'BIG 1', 'TOP 10')\n"
+        "3. MEMORABILITY: Easy to remember words, common phrases, or recognizable patterns\n"
+        "4. PRONUNCIATION: Easy to say aloud without confusion\n"
+        "5. TYPING EASE: Simple to dial on a phone keypad\n\n"
+        
+        "FILTER OUT: Any inappropriate, offensive, or confusing combinations.\n\n"
+        
+        "Return the top 5 ranked vanity numbers, sorted by desirability.\n\n"
+        
+        "TTS FORMATTING RULES:\n"
+        "Create natural speech versions that sound like how a human would say the number:\n"
+        "- Convert words to lowercase\n"
+        "- For 1-2 digit numbers: use word form (90 → 'ninety', 5 → 'five')\n"
+        "- For 3+ digit numbers: spell out digit by digit (1234 → 'one two three four')\n"
+        "- Group logical segments with spaces\n"
+        "- Examples:\n"
+        "  * '555-HI-90' → 'five five five hi ninety'\n"
+        "  * '123-4-LOST-90' → 'one two three four lost ninety'\n"
+        "  * '800-BIG-1' → 'eight zero zero big one'\n\n"
+        
+        f"Vanity Numbers to rank: {', '.join(candidates)}\n\n"
     )
     response = structured_llm.invoke(prompt)
     if response is None or 'numbers' not in response or not response['numbers']:
@@ -170,14 +187,11 @@ def generate_vanity_candidates(phone_number: str) -> list[str]:
             raise ValueError("11-digit number must start with country code '1'.")
         phone_number = phone_number[1:]  # Remove leading country code
 
-    area_code = phone_number[:3]
-    phone_number_digits = phone_number[3:]
-
-    logger.info(f"Processing phone number digits: {phone_number_digits}")
+    logger.info(f"Processing phone number digits: {phone_number}")
 
     # Convert digits to corresponding letter lists
     digit_letters = []
-    for digit in phone_number_digits:
+    for digit in phone_number:
         if digit in KEYPAD:
             digit_letters.append(KEYPAD[digit])
         else:
@@ -199,7 +213,7 @@ def generate_vanity_candidates(phone_number: str) -> list[str]:
                 # Check if the candidate is a valid word
                 if word_candidate.lower() in WORD_LIST:
                     # Reconstruct the phone number using the word candidate
-                    phone_candidate = f"{area_code}-{phone_number_digits[:i]}-{word_candidate}-{phone_number_digits[j:]}"
+                    phone_candidate = f"{phone_number[:i]}-{word_candidate}-{phone_number[j:]}"
                     candidates.append(phone_candidate)    
                     
     # Remove duplicates and sort candidates
