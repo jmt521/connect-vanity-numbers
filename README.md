@@ -4,6 +4,8 @@ This AWS CDK project creates an Amazon Connect vanity number lookup system that 
 
 ## Architecture
 
+![Architecture Diagram](doc/architecture-diagram.png)
+
 The solution includes:
 - **Amazon Connect Contact Flow** - Handles incoming calls and orchestrates the vanity number generation
 - **AWS Lambda Function** - Python function that generates vanity number candidates and ranks them using AI
@@ -18,6 +20,7 @@ The solution includes:
 - Node.js and npm installed
 - AWS CDK v2 installed (`npm install -g aws-cdk`)
 - SAM CLI installed (for local debugging)
+- Docker installed
 - An existing Amazon Connect instance
 - Bedrock model access
     - Ensure the specified model is available in your AWS account and region
